@@ -1,7 +1,10 @@
 import java.math.BigInteger;
 import java.nio.charset.Charset;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 import java.util.Scanner;
+import java.io.*;
+import java.io.IOException;
 
 /**
  * <p>
@@ -33,6 +36,7 @@ public class MHK_Crypto_w_Arrays {
     /**
      * Constructor
      */
+
     public MHK_Crypto_w_Arrays() {
         genKeys();
     }
@@ -69,6 +73,7 @@ public class MHK_Crypto_w_Arrays {
         r = q.subtract(BigInteger.ONE);
 
         // generate the public key sequence
+        // generate the public key sequence
         b = new BigInteger[BINARY_LENGTH];
         for (int i = 0; i < b.length; i++)
             b[i] = w[i].multiply(r).mod(q);
@@ -101,11 +106,14 @@ public class MHK_Crypto_w_Arrays {
             msgBinary = String.format("%0" + (BINARY_LENGTH - msgBinary.length()) + "d", 0) + msgBinary;
         }
 
+
         // produce the final encrypted message
         BigInteger result = BigInteger.ZERO;
+
         for (int i = 0; i < msgBinary.length(); i++) {
             result = result.add(b[i].multiply(new BigInteger(msgBinary.substring(i, i+1))));
         }
+
 
         return result.toString();
     }
@@ -122,10 +130,14 @@ public class MHK_Crypto_w_Arrays {
      * @return the decrypted message
      */
     public String decryptMsg(String ciphertext) {
-        BigInteger tmp = new BigInteger(ciphertext).mod(q).multiply(r.modInverse(q)).mod(q);
         byte[] decrypted_binary = new byte[w.length];  // the decrypted message in binary
+        BigInteger tmp = new BigInteger(ciphertext);
+        
 
-        for (int i = w.length - 1; i >= 0; i--) {
+        tmp = tmp.mod(q).multiply(r.modInverse(q)).mod(q);
+
+
+         for (int i = w.length - 1; i >= 0; i--) {
             if (w[i].compareTo(tmp) <= 0) {  // found the largest element in w which is less than or equal to tmp
                 tmp = tmp.subtract(w[i]);
                 decrypted_binary[i] = 1;
@@ -133,6 +145,7 @@ public class MHK_Crypto_w_Arrays {
                 decrypted_binary[i] = 0;
             }
         }
+        
 
         // convert byte[] to string
         StringBuilder sb = new StringBuilder();
@@ -147,32 +160,65 @@ public class MHK_Crypto_w_Arrays {
     /**
      * Test driver
      */
+
     public static void main(String[] args) {
-        MHK_Crypto_w_Arrays crypto = new MHK_Crypto_w_Arrays();
-        System.out.println("Public and private keys have been generated.\n");
+        try {
+
+        long start_encrypt, end_encrypt, start_decrypt, end_decrypt,encrypt_time=0,decrypt_time=0;
+        long start_keygen,end_keygen,keygen_time;
+        
+	BufferedReader br = new BufferedReader(new FileReader("test.txt"));
         Scanner input = new Scanner(System.in);
+                    
+	start_keygen = System.nanoTime();
+	MHK_Crypto_w_Arrays crypto = new MHK_Crypto_w_Arrays();		
+        end_keygen = System.nanoTime();
+        keygen_time=(end_keygen - start_keygen);
+                        
         String message;
-        while (true) {
-            System.out.println("Enter a string and I will encrypt it as single large integer:");
-            message = input.nextLine();
-            if (message.length() > MAX_CHARS)
-                System.out.printf("\nYour message should have at most %d characters! Please try again.\n\n", MAX_CHARS);
-            else if (message.length() <= 0)
-                System.out.println("\nYou message should not be empty! Please try again.\n\n");
-            else break;
+
+        //Read File Line By Line
+                while ((message = br.readLine()) != null)   {
+                       
+                        while (true) {
+
+                            if (message.length() > MAX_CHARS)
+                                System.out.printf("\nYour message should have at most %d characters! Please try again.\n\n", MAX_CHARS);
+                            else if (message.length() <= 0)
+                                System.out.println("\nYou message should not be empty! Please try again.\n\n");
+                            else break;
+                        }
+
+
+                        start_encrypt = System.nanoTime();
+                        String encrypted = crypto.encryptMsg(message);
+                        end_encrypt = System.nanoTime();
+                        
+
+                        encrypt_time = encrypt_time+ end_encrypt - start_encrypt;
+                        
+                       
+                        start_decrypt = System.nanoTime();
+                        String decrypted = crypto.decryptMsg(encrypted);
+                        end_decrypt = System.nanoTime();
+
+                        decrypt_time = decrypt_time + end_decrypt - start_decrypt;
+                
+                }
+		br.close();
+                //in milli seconds
+                System.out.println("Total Time for encryption is "+encrypt_time/1000000);
+                System.out.println("Total Time for decryption is "+decrypt_time/1000000);
+		System.out.println("Total Time for key generation is "+keygen_time/1000000);               
+
+               
+            } catch (FileNotFoundException fnfe) {
+            System.out.println(fnfe);
+        } catch (IOException ex) {
+             System.out.println(ex);
         }
 
-
-        System.out.println("\nClear text:");
-        System.out.println(message);
-        System.out.println("\nNumber of clear text bytes = " + message.getBytes().length);
-
-        String encrypted = crypto.encryptMsg(message);
-        System.out.println("\n\"" + message + "\"" + " is encrypted as:");
-        System.out.println(encrypted);
-
-        System.out.println("\nResult of decryption:");
-        System.out.println(crypto.decryptMsg(encrypted));
     }
 
 }
+                               
